@@ -1,17 +1,9 @@
 package test.hierarchy.service;
 
-import test.hierarchy.GroupModel;
 import test.hierarchy.dao.GroupDao;
 import test.hierarchy.domain.Group;
 
-import java.util.List;
-
 public class GroupServiceImpl implements GroupService {
-
-    /**
-     * This is a cache that holds the group structure
-     */
-    private final GroupModel cachedGroupModel = new GroupModel();
 
     private GroupDao groupDao;
 
@@ -45,22 +37,25 @@ public class GroupServiceImpl implements GroupService {
             return null;
         }
 
-        // TODO: Consider a solution that doesn't involve any cache
-
-        // then we need to find the top-level group that contains that group.
-        GroupModel groupModel = getGroupModel();
-        return groupModel.findTopLevelGroupId(groupId);
+        Group topGroup = getTopLevelGroup(getGroupById(groupId));
+        return(topGroup != null ? topGroup.getId() : null);
     }
 
-    protected GroupModel getGroupModel() {
-        synchronized (this) {
-            if (cachedGroupModel.isEmpty()) {
-                // TODO: consider moving this slow operation outside the synchronized block.
-                List<Group> groups = getGroupDao().getAllGroups();
-                cachedGroupModel.cache(groups);
-            }
+    public Group getTopLevelGroup(Group group) {
+        if (group.getId() == null) {
+            // that means that the objectId is invalid or deleted!
+            // we need to avoid an NPE to the caller.
+            return null;
         }
 
-        return cachedGroupModel;
+        Integer parentId = group.getParentId();
+
+        if (parentId == null) {
+            // that means that the objectId is invalid or deleted!
+            // we need to avoid an NPE to the caller.
+            return group;
+        }
+
+        return(getTopLevelGroup(getGroupDao().getGroupById(parentId)));
     }
 }
